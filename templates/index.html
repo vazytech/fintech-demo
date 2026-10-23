@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Merch Checkout</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            padding-top: 60px;
+            background: #f4f4f9;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 320px;
+        }
+        h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            box-sizing: border-box;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1b5e20;
+        }
+        button:disabled {
+            background: #9e9e9e;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+            line-height: 1.4;
+        }
+        .loading { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+        .success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>Dev Hoodie - KES 1</h3>
+        <form id="checkout-form">
+            <label for="phone">M-Pesa Number (2547...):</label>
+            <input type="text" id="phone" name="phone" placeholder="254712345678" required />
+            <button type="submit" id="pay-btn">Pay with M-Pesa</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById("checkout-form");
+        const payBtn = document.getElementById("pay-btn");
+        const statusBox = document.getElementById("status");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault(); // Stop the page from reloading into raw JSON
+
+            // 1. Show loading state
+            payBtn.disabled = true;
+            payBtn.textContent = "Sending Request...";
+            statusBox.style.display = "block";
+            statusBox.className = "loading";
+            statusBox.textContent = "⏳ Talking to Safaricom... Keep your phone unlocked!";
+
+            try {
+                // 2. Send phone number to Flask /pay route
+                const formData = new FormData(form);
+                const response = await fetch("/pay", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+
+                // 3. Check if Safaricom accepted the STK push (ResponseCode "0")
+                if (data.ResponseCode === "0") {
+                    statusBox.className = "success";
+                    statusBox.textContent = "📲 Check your phone! Enter your M-Pesa PIN on the pop-up.";
+                } else {
+                    statusBox.className = "error";
+                    const errorMsg = data.errorMessage || data.CustomerMessage || "Request rejected. Check terminal logs.";
+                    statusBox.textContent = "❌ Error: " + errorMsg;
+                }
+            } catch (err) {
+                statusBox.className = "error";
+                statusBox.textContent = "❌ Could not reach the Flask server. Is app.py running?";
+            } finally {
+                // 4. Re-enable button so they can test again
+                payBtn.disabled = false;
+                payBtn.textContent = "Pay with M-Pesa";
+            }
+        });
+    </script>
+</body>
+</html>
